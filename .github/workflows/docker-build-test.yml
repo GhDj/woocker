@@ -33,17 +33,17 @@ jobs:
           cat .env
 
       - name: Build Docker images
-        run: docker-compose build
+        run: docker compose build
         timeout-minutes: 10
 
       - name: Start containers
-        run: docker-compose up -d
+        run: docker compose up -d
         timeout-minutes: 5
 
       - name: Wait for services to be ready
         run: |
           echo "Waiting for database..."
-          timeout 60 bash -c 'until docker-compose exec -T db mysqladmin ping -h localhost -u root -prootpassword --silent; do sleep 2; done'
+          timeout 60 bash -c 'until docker compose exec -T db mysqladmin ping -h localhost -u root -prootpassword --silent; do sleep 2; done'
           echo "Database is ready!"
 
           echo "Waiting for WordPress..."
@@ -52,7 +52,7 @@ jobs:
           echo "WordPress is ready!"
 
       - name: Check container status
-        run: docker-compose ps
+        run: docker compose ps
 
       - name: Verify WordPress installation
         run: |
@@ -66,12 +66,12 @@ jobs:
 
       - name: Verify WP-CLI is working
         run: |
-          docker-compose exec -T wordpress wp --version --allow-root
+          docker compose exec -T wordpress wp --version --allow-root
           echo "WP-CLI is working!"
 
       - name: Verify PHP version
         run: |
-          php_version=$(docker-compose exec -T wordpress php -v | head -n 1)
+          php_version=$(docker compose exec -T wordpress php -v | head -n 1)
           echo "PHP Version: $php_version"
 
           # Check if the correct PHP version is installed
@@ -84,7 +84,7 @@ jobs:
 
       - name: Verify Xdebug is installed
         run: |
-          xdebug_check=$(docker-compose exec -T wordpress php -m | grep xdebug || echo "not found")
+          xdebug_check=$(docker compose exec -T wordpress php -m | grep xdebug || echo "not found")
           if [ "$xdebug_check" = "xdebug" ]; then
             echo "✓ Xdebug is installed"
           else
@@ -94,7 +94,7 @@ jobs:
 
       - name: Verify database connection
         run: |
-          docker-compose exec -T db mysql -u wordpress -pwordpress -e "SHOW DATABASES;" | grep wordpress
+          docker compose exec -T db mysql -u wordpress -pwordpress -e "SHOW DATABASES;" | grep wordpress
           echo "✓ Database connection working"
 
       - name: Check PHPMyAdmin
@@ -110,13 +110,13 @@ jobs:
         if: failure()
         run: |
           echo "=== WordPress Logs ==="
-          docker-compose logs wordpress
+          docker compose logs wordpress
           echo "=== Database Logs ==="
-          docker-compose logs db
+          docker compose logs db
 
       - name: Stop containers
         if: always()
-        run: docker-compose down -v
+        run: docker compose down -v
 
   test-setup-script:
     name: Test Setup Script
@@ -141,7 +141,7 @@ jobs:
           sleep 5
 
           # Check if WordPress core is installed
-          if docker-compose exec -T wordpress wp core is-installed --allow-root; then
+          if docker compose exec -T wordpress wp core is-installed --allow-root; then
             echo "✓ WordPress is installed"
           else
             echo "✗ WordPress is not installed"
@@ -150,7 +150,7 @@ jobs:
 
       - name: Verify WooCommerce is installed
         run: |
-          wc_status=$(docker-compose exec -T wordpress wp plugin status woocommerce --allow-root)
+          wc_status=$(docker compose exec -T wordpress wp plugin status woocommerce --allow-root)
           if echo "$wc_status" | grep -q "Status: Active"; then
             echo "✓ WooCommerce is installed and active"
           else
@@ -160,7 +160,7 @@ jobs:
 
       - name: Verify Storefront theme is installed
         run: |
-          theme_status=$(docker-compose exec -T wordpress wp theme status storefront --allow-root)
+          theme_status=$(docker compose exec -T wordpress wp theme status storefront --allow-root)
           if echo "$theme_status" | grep -q "Status: Active"; then
             echo "✓ Storefront theme is active"
           else
@@ -170,7 +170,7 @@ jobs:
 
       - name: Verify sample products exist
         run: |
-          product_count=$(docker-compose exec -T wordpress wp post list --post_type=product --format=count --allow-root)
+          product_count=$(docker compose exec -T wordpress wp post list --post_type=product --format=count --allow-root)
           echo "Found $product_count products"
 
           if [ "$product_count" -ge "6" ]; then
@@ -182,7 +182,7 @@ jobs:
 
       - name: Verify sample customers exist
         run: |
-          customer_count=$(docker-compose exec -T wordpress wp user list --role=customer --format=count --allow-root)
+          customer_count=$(docker compose exec -T wordpress wp user list --role=customer --format=count --allow-root)
           echo "Found $customer_count customers"
 
           if [ "$customer_count" -ge "2" ]; then
@@ -216,10 +216,10 @@ jobs:
         run: |
           echo "=== Setup Script Output ==="
           echo "=== WordPress Logs ==="
-          docker-compose logs wordpress
+          docker compose logs wordpress
           echo "=== Database Logs ==="
-          docker-compose logs db
+          docker compose logs db
 
       - name: Cleanup
         if: always()
-        run: docker-compose down -v
+        run: docker compose down -v
