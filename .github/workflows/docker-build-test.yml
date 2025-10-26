@@ -30,6 +30,12 @@ jobs:
         run: |
           cp .env.example .env
           sed -i "s/PHP_VERSION=8.1/PHP_VERSION=${{ matrix.php-version }}/" .env
+
+          # Use WordPress 6.3 for PHP 7.4 (6.4 doesn't support PHP 7.4)
+          if [ "${{ matrix.php-version }}" = "7.4" ]; then
+            sed -i "s/WORDPRESS_VERSION=6.4/WORDPRESS_VERSION=6.3/" .env
+          fi
+
           cat .env
 
       - name: Build Docker images
