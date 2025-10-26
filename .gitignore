@@ -1,0 +1,57 @@
+# Environment files
+.env
+
+# Docker volumes
+db_data/
+
+# IDE and editor files (but keep .vscode/launch.json)
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Composer
+vendor/
+composer.lock
+
+# PHPUnit
+.phpunit.result.cache
+coverage-html/
+tests-output/
+phpunit.xml.dist
+
+# WordPress - ignore everything except custom plugins
+wordpress/
+!wordpress/wp-content/
+!wordpress/wp-content/plugins/
+wordpress/wp-content/plugins/*
+!wordpress/wp-content/plugins/.gitkeep
+# Add your custom plugins here with !wordpress/wp-content/plugins/your-plugin-name/
+
+# Logs
+*.log
+logs/
+*.sql
+*.sqlite
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Node modules (if you use npm/yarn)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build files
+dist/
+build/
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+._*

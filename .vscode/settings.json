@@ -1,0 +1,8 @@
+{
+    "php.validate.executablePath": "/usr/local/bin/php",
+    "phpunit.phpunit": "vendor/bin/phpunit",
+    "phpunit.args": [
+        "-c",
+        "phpunit.xml"
+    ]
+}
