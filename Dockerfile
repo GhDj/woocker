@@ -22,9 +22,19 @@ RUN apt-get update && apt-get install -y \
 # Install PHP extensions
 RUN docker-php-ext-install zip pdo_mysql
 
-# Install Xdebug
-RUN pecl install xdebug-3.2.2 \
-    && docker-php-ext-enable xdebug
+# Install Xdebug (version depends on PHP version)
+# PHP 7.4: Xdebug 3.1.x
+# PHP 8.0-8.2: Xdebug 3.2.x
+# PHP 8.3+: Xdebug 3.3.x
+RUN PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;") && \
+    if [ "$PHP_VERSION" = "7.4" ]; then \
+        pecl install xdebug-3.1.6; \
+    elif [ "$PHP_VERSION" = "8.3" ]; then \
+        pecl install xdebug-3.3.2; \
+    else \
+        pecl install xdebug-3.2.2; \
+    fi && \
+    docker-php-ext-enable xdebug
 
 # Configure Xdebug
 RUN echo "xdebug.mode=debug,develop,coverage" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini \
