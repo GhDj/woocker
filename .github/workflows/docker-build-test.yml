@@ -1,0 +1,231 @@
+name: Docker Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run weekly on Monday at 00:00 UTC to catch dependency issues
+    - cron: '0 0 * * 1'
+
+jobs:
+  test-build:
+    name: Test PHP ${{ matrix.php-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['7.4', '8.0', '8.1', '8.2', '8.3']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create .env file
+        run: |
+          cp .env.example .env
+          sed -i "s/PHP_VERSION=8.1/PHP_VERSION=${{ matrix.php-version }}/" .env
+
+          # For PHP 7.4, use wordpress:php7.4-apache (no version pinning)
+          if [ "${{ matrix.php-version }}" = "7.4" ]; then
+            echo "WORDPRESS_IMAGE_TAG=wordpress:php7.4-apache" >> .env
+          fi
+
+          cat .env
+
+      - name: Build Docker images
+        run: docker compose build
+        timeout-minutes: 10
+
+      - name: Start containers
+        run: docker compose up -d
+        timeout-minutes: 5
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for database..."
+          timeout 60 bash -c 'until docker compose exec -T db mysqladmin ping -h localhost -u root -prootpassword --silent; do sleep 2; done'
+          echo "Database is ready!"
+
+          echo "Waiting for WordPress..."
+          sleep 10
+          timeout 60 bash -c 'until curl -f http://localhost:8000 > /dev/null 2>&1; do sleep 2; done'
+          echo "WordPress is ready!"
+
+      - name: Check container status
+        run: docker compose ps
+
+      - name: Verify WordPress installation
+        run: |
+          # Check if WordPress responds
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000)
+          if [ "$response" -ne "200" ] && [ "$response" -ne "302" ]; then
+            echo "WordPress is not responding correctly (HTTP $response)"
+            exit 1
+          fi
+          echo "WordPress is responding (HTTP $response)"
+
+      - name: Verify WP-CLI is working
+        run: |
+          docker compose exec -T wordpress wp --version --allow-root
+          echo "WP-CLI is working!"
+
+      - name: Verify PHP version
+        run: |
+          php_version=$(docker compose exec -T wordpress php -v | head -n 1)
+          echo "PHP Version: $php_version"
+
+          # Check if the correct PHP version is installed
+          if echo "$php_version" | grep -q "PHP ${{ matrix.php-version }}"; then
+            echo "✓ Correct PHP version installed"
+          else
+            echo "✗ Wrong PHP version installed"
+            exit 1
+          fi
+
+      - name: Verify Xdebug is installed
+        run: |
+          xdebug_check=$(docker compose exec -T wordpress php -m | grep xdebug || echo "not found")
+          if [ "$xdebug_check" = "xdebug" ]; then
+            echo "✓ Xdebug is installed"
+          else
+            echo "✗ Xdebug is not installed"
+            exit 1
+          fi
+
+      - name: Verify database connection
+        run: |
+          docker compose exec -T db mysql -u wordpress -pwordpress -e "SHOW DATABASES;" | grep wordpress
+          echo "✓ Database connection working"
+
+      - name: Check PHPMyAdmin
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080)
+          if [ "$response" -ne "200" ]; then
+            echo "PHPMyAdmin is not responding correctly (HTTP $response)"
+            exit 1
+          fi
+          echo "✓ PHPMyAdmin is accessible (HTTP $response)"
+
+      - name: View WordPress logs on failure
+        if: failure()
+        run: |
+          echo "=== WordPress Logs ==="
+          docker compose logs wordpress
+          echo "=== Database Logs ==="
+          docker compose logs db
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v
+
+  test-setup-script:
+    name: Test Setup Script
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make setup script executable
+        run: chmod +x setup.sh
+
+      - name: Run setup script
+        run: ./setup.sh
+        timeout-minutes: 15
+        env:
+          CI: true
+
+      - name: Verify WordPress is installed
+        run: |
+          # Wait a bit for WordPress to fully initialize
+          sleep 5
+
+          # Check if WordPress core is installed
+          if docker compose exec -T wordpress wp core is-installed --allow-root; then
+            echo "✓ WordPress is installed"
+          else
+            echo "✗ WordPress is not installed"
+            exit 1
+          fi
+
+      - name: Verify WooCommerce is installed
+        run: |
+          wc_status=$(docker compose exec -T wordpress wp plugin status woocommerce --allow-root)
+          if echo "$wc_status" | grep -q "Status: Active"; then
+            echo "✓ WooCommerce is installed and active"
+          else
+            echo "✗ WooCommerce is not active"
+            exit 1
+          fi
+
+      - name: Verify Storefront theme is installed
+        run: |
+          theme_status=$(docker compose exec -T wordpress wp theme status storefront --allow-root)
+          if echo "$theme_status" | grep -q "Status: Active"; then
+            echo "✓ Storefront theme is active"
+          else
+            echo "✗ Storefront theme is not active"
+            exit 1
+          fi
+
+      - name: Verify sample products exist
+        run: |
+          product_count=$(docker compose exec -T wordpress wp post list --post_type=product --format=count --allow-root)
+          echo "Found $product_count products"
+
+          if [ "$product_count" -ge "6" ]; then
+            echo "✓ Sample products created ($product_count products)"
+          else
+            echo "✗ Not enough sample products created"
+            exit 1
+          fi
+
+      - name: Verify sample customers exist
+        run: |
+          customer_count=$(docker compose exec -T wordpress wp user list --role=customer --format=count --allow-root)
+          echo "Found $customer_count customers"
+
+          if [ "$customer_count" -ge "2" ]; then
+            echo "✓ Sample customers created ($customer_count customers)"
+          else
+            echo "✗ Not enough sample customers created"
+            exit 1
+          fi
+
+      - name: Verify VS Code config exists
+        run: |
+          if [ -f ".vscode/launch.json" ]; then
+            echo "✓ VS Code launch.json created"
+          else
+            echo "✗ VS Code launch.json not found"
+            exit 1
+          fi
+
+      - name: Test WordPress site accessibility
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000)
+          if [ "$response" -eq "200" ]; then
+            echo "✓ WordPress site is accessible (HTTP $response)"
+          else
+            echo "✗ WordPress site returned HTTP $response"
+            exit 1
+          fi
+
+      - name: View logs on failure
+        if: failure()
+        run: |
+          echo "=== Setup Script Output ==="
+          echo "=== WordPress Logs ==="
+          docker compose logs wordpress
+          echo "=== Database Logs ==="
+          docker compose logs db
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v
