@@ -1,6 +1,9 @@
 ARG WORDPRESS_VERSION=6.4
 ARG PHP_VERSION=8.1
-FROM wordpress:${WORDPRESS_VERSION}-php${PHP_VERSION}-apache
+# For PHP 7.4, use wordpress:php7.4-apache (no version pinning)
+# For PHP 8.0+, use wordpress:6.4-php8.x-apache (version pinned)
+ARG WORDPRESS_IMAGE_TAG
+FROM ${WORDPRESS_IMAGE_TAG:-wordpress:${WORDPRESS_VERSION}-php${PHP_VERSION}-apache}
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \

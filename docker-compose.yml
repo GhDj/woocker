@@ -24,6 +24,7 @@ services:
       args:
         WORDPRESS_VERSION: ${WORDPRESS_VERSION:-6.4}
         PHP_VERSION: ${PHP_VERSION:-8.1}
+        WORDPRESS_IMAGE_TAG: ${WORDPRESS_IMAGE_TAG}
     container_name: woocker_wordpress
     depends_on:
       db:
