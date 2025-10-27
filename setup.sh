@@ -57,11 +57,17 @@ check_prerequisites() {
     fi
     print_success "Docker is installed"
 
-    if ! command_exists docker-compose; then
+    # Check for Docker Compose (V1 or V2)
+    if command_exists docker-compose; then
+        DOCKER_COMPOSE_CMD="docker-compose"
+        print_success "Docker Compose V1 is installed"
+    elif docker compose version >/dev/null 2>&1; then
+        DOCKER_COMPOSE_CMD="docker compose"
+        print_success "Docker Compose V2 is installed"
+    else
         print_error "Docker Compose is not installed. Please install Docker Compose first."
         exit 1
     fi
-    print_success "Docker Compose is installed"
 }
 
 # Setup environment file
@@ -97,10 +103,10 @@ start_containers() {
     cd "${SCRIPT_DIR}"
 
     print_info "Building Docker images (this may take a few minutes)..."
-    docker-compose build
+    $DOCKER_COMPOSE_CMD build
 
     print_info "Starting containers..."
-    docker-compose up -d
+    $DOCKER_COMPOSE_CMD up -d
 
     print_success "Containers started successfully"
 }
@@ -116,7 +122,7 @@ wait_for_services() {
     local attempt=1
 
     while [ $attempt -le $max_attempts ]; do
-        if docker-compose exec -T db mysqladmin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD:-rootpassword}" >/dev/null 2>&1; then
+        if $DOCKER_COMPOSE_CMD exec -T db mysqladmin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD:-rootpassword}" >/dev/null 2>&1; then
             print_success "Database is ready"
             break
         fi
@@ -141,7 +147,7 @@ install_wordpress() {
     print_header "Installing WordPress"
 
     # Check if WordPress is already installed
-    if docker-compose exec -T wordpress wp core is-installed --allow-root 2>/dev/null; then
+    if $DOCKER_COMPOSE_CMD exec -T wordpress wp core is-installed --allow-root 2>/dev/null; then
         print_warning "WordPress is already installed. Skipping installation..."
         return
     fi
@@ -153,7 +159,7 @@ install_wordpress() {
     local admin_email="${WP_ADMIN_EMAIL:-admin@example.local}"
 
     print_info "Installing WordPress..."
-    docker-compose exec -T wordpress wp core install \
+    $DOCKER_COMPOSE_CMD exec -T wordpress wp core install \
         --url="${site_url}" \
         --title="${site_title}" \
         --admin_user="${admin_user}" \
@@ -176,18 +182,18 @@ install_plugins() {
 
     # Install WooCommerce
     print_info "Installing WooCommerce ${wc_version}..."
-    docker-compose exec -T wordpress wp plugin install "woocommerce" --version="${wc_version}" --activate --allow-root
+    $DOCKER_COMPOSE_CMD exec -T wordpress wp plugin install "woocommerce" --version="${wc_version}" --activate --allow-root
     print_success "WooCommerce installed and activated"
 
     # Run WooCommerce setup
     print_info "Configuring WooCommerce..."
-    docker-compose exec -T wordpress wp option update woocommerce_store_address "123 Test Street" --allow-root
-    docker-compose exec -T wordpress wp option update woocommerce_store_city "Test City" --allow-root
-    docker-compose exec -T wordpress wp option update woocommerce_default_country "US:CA" --allow-root
-    docker-compose exec -T wordpress wp option update woocommerce_store_postcode "12345" --allow-root
-    docker-compose exec -T wordpress wp option update woocommerce_currency "USD" --allow-root
-    docker-compose exec -T wordpress wp option update woocommerce_product_type "both" --allow-root
-    docker-compose exec -T wordpress wp option update woocommerce_onboarding_opt_in "no" --allow-root
+    $DOCKER_COMPOSE_CMD exec -T wordpress wp option update woocommerce_store_address "123 Test Street" --allow-root
+    $DOCKER_COMPOSE_CMD exec -T wordpress wp option update woocommerce_store_city "Test City" --allow-root
+    $DOCKER_COMPOSE_CMD exec -T wordpress wp option update woocommerce_default_country "US:CA" --allow-root
+    $DOCKER_COMPOSE_CMD exec -T wordpress wp option update woocommerce_store_postcode "12345" --allow-root
+    $DOCKER_COMPOSE_CMD exec -T wordpress wp option update woocommerce_currency "USD" --allow-root
+    $DOCKER_COMPOSE_CMD exec -T wordpress wp option update woocommerce_product_type "both" --allow-root
+    $DOCKER_COMPOSE_CMD exec -T wordpress wp option update woocommerce_onboarding_opt_in "no" --allow-root
     print_success "WooCommerce configured"
 }
 
@@ -198,7 +204,7 @@ install_theme() {
     local theme_version="${STOREFRONT_VERSION:-4.5.5}"
 
     print_info "Installing Storefront theme ${theme_version}..."
-    docker-compose exec -T wordpress wp theme install "storefront" --version="${theme_version}" --activate --allow-root
+    $DOCKER_COMPOSE_CMD exec -T wordpress wp theme install "storefront" --version="${theme_version}" --activate --allow-root
     print_success "Storefront theme installed and activated"
 }
 
@@ -207,7 +213,7 @@ setup_sample_data() {
     print_header "Setting Up Sample Data"
 
     print_info "Creating sample products and customers..."
-    docker-compose exec -T wordpress bash /var/www/scripts/setup-sample-data.sh
+    $DOCKER_COMPOSE_CMD exec -T wordpress bash /var/www/scripts/setup-sample-data.sh
     print_success "Sample data created successfully"
 }
 
