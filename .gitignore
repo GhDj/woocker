@@ -1,6 +1,9 @@
 # Environment files
 .env
 
+# SSL Certificates (locally generated)
+ssl/
+
 # Docker volumes
 db_data/
 

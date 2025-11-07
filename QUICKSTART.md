@@ -10,6 +10,7 @@ Get your WordPress + WooCommerce development environment running in 5 minutes!
 
 The script automatically:
 - ✅ Creates `.env` configuration file
+- ✅ Generates SSL certificates (HTTPS support)
 - ✅ Builds Docker containers with your chosen PHP version
 - ✅ Installs WordPress
 - ✅ Installs WooCommerce
@@ -20,13 +21,17 @@ The script automatically:
 
 ## Access Your Site
 
-- **Frontend**: http://wooco.localhost:8000
-- **Admin**: http://wooco.localhost:8000/wp-admin
+- **Frontend**: https://wooco.localhost:8443
+- **Admin**: https://wooco.localhost:8443/wp-admin
 - **PHPMyAdmin**: http://localhost:8080
 
 **Login**: admin / admin123
 
-**Note:** You can change the hostname in `.env` file.
+**Note:**
+- HTTPS is enabled by default with auto-generated SSL certificates
+- If you see a browser warning (self-signed cert), click "Advanced" → "Proceed"
+- Install [mkcert](https://github.com/FiloSottile/mkcert) for trusted certificates (no warnings)
+- You can change the hostname in `.env` file
 
 ## Add Your Plugin
 
@@ -89,12 +94,12 @@ docker-compose exec wordpress bash
 1. Install "PHP Debug" extension
 2. Press `F5` to start debugging
 3. Add breakpoints in your plugin code
-4. Visit: `http://wooco.localhost:8000/?XDEBUG_TRIGGER=1` (or your configured hostname)
+4. Visit: `https://wooco.localhost:8443/?XDEBUG_TRIGGER=1` (or your configured hostname)
 
 ### PhpStorm
 1. Settings → PHP → Debug → Port: `9003`
 2. Click "Start Listening for PHP Debug Connections"
-3. Visit: `http://wooco.localhost:8000/?XDEBUG_TRIGGER=1` (or your configured hostname)
+3. Visit: `https://wooco.localhost:8443/?XDEBUG_TRIGGER=1` (or your configured hostname)
 
 ## Sample Data
 
@@ -114,8 +119,8 @@ The environment includes all WooCommerce product types:
 - jane.smith@example.com / customer123
 
 **Quick Links:**
-- Products: http://wooco.localhost:8000/wp-admin/edit.php?post_type=product
-- Customers: http://wooco.localhost:8000/wp-admin/admin.php?page=wc-admin&path=/customers
+- Products: https://wooco.localhost:8443/wp-admin/edit.php?post_type=product
+- Customers: https://wooco.localhost:8443/wp-admin/admin.php?page=wc-admin&path=/customers
 
 ## Testing
 

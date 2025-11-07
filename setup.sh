@@ -96,6 +96,27 @@ load_env() {
     fi
 }
 
+# Generate SSL certificates
+generate_ssl() {
+    print_header "Generating SSL Certificates"
+
+    local hostname="${WORDPRESS_HOSTNAME:-wooco.localhost}"
+
+    # Check if certificates already exist
+    if [ -f "${SCRIPT_DIR}/ssl/cert.pem" ] && [ -f "${SCRIPT_DIR}/ssl/key.pem" ]; then
+        print_warning "SSL certificates already exist. Skipping generation..."
+        read -p "Do you want to regenerate them? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            return
+        fi
+    fi
+
+    # Run the certificate generation script
+    bash "${SCRIPT_DIR}/scripts/generate-ssl-certs.sh" "${hostname}"
+    print_success "SSL certificates generated for ${hostname}"
+}
+
 # Build and start Docker containers
 start_containers() {
     print_header "Building and Starting Docker Containers"
@@ -313,6 +334,7 @@ main() {
     check_prerequisites
     setup_env
     load_env
+    generate_ssl
     start_containers
     wait_for_services
     install_wordpress
