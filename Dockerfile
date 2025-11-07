@@ -22,6 +22,13 @@ RUN apt-get update && apt-get install -y \
 # Install PHP extensions
 RUN docker-php-ext-install zip pdo_mysql
 
+# Enable Apache SSL module and rewrite
+RUN a2enmod ssl rewrite
+
+# Copy SSL configuration
+COPY ssl-config.conf /etc/apache2/sites-available/default-ssl.conf
+RUN a2ensite default-ssl
+
 # Install Xdebug (version depends on PHP version)
 # PHP 7.4: Xdebug 3.1.x
 # PHP 8.0-8.2: Xdebug 3.2.x

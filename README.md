@@ -41,15 +41,19 @@ That's it! The setup script will:
 
 After setup completes:
 
-- **Frontend**: http://wooco.localhost:8000 (or your configured hostname)
-- **Admin**: http://wooco.localhost:8000/wp-admin
+- **Frontend**: https://wooco.localhost:8443 (or your configured hostname)
+- **Admin**: https://wooco.localhost:8443/wp-admin
 - **PHPMyAdmin**: http://localhost:8080
 
 **Default Login:**
 - Username: `admin`
 - Password: `admin123`
 
-**Note:** `*.localhost` domains work without editing `/etc/hosts` on most systems. You can customize the hostname in `.env`.
+**Note:**
+- `*.localhost` domains work without editing `/etc/hosts` on most systems
+- HTTPS is enabled by default with auto-generated SSL certificates
+- If using mkcert, you won't see any browser warnings
+- If using self-signed certs, click "Advanced" and "Proceed" on the browser warning
 
 ## Project Structure
 
@@ -190,6 +194,45 @@ docker-compose up -d
 wp search-replace 'old-url.com' 'new-url.com' --allow-root
 ```
 
+### SSL/HTTPS Configuration
+
+HTTPS is enabled by default for secure local development. The setup script automatically generates SSL certificates.
+
+**Using mkcert (Recommended - No Browser Warnings):**
+
+```bash
+# Install mkcert (one-time setup)
+# macOS
+brew install mkcert
+brew install nss # for Firefox
+
+# Linux
+apt install mkcert # or your package manager
+
+# Windows
+choco install mkcert
+
+# The setup.sh script will automatically use mkcert if available
+```
+
+**Using Self-Signed Certificates (Fallback):**
+
+If mkcert is not installed, the setup script automatically generates self-signed certificates. You'll see a browser security warning - this is normal. Click "Advanced" and "Proceed" to continue.
+
+**Manual Certificate Regeneration:**
+
+```bash
+# Regenerate SSL certificates for a specific hostname
+./scripts/generate-ssl-certs.sh your-hostname.localhost
+
+# Restart containers to apply changes
+docker-compose restart wordpress
+```
+
+**Ports:**
+- HTTPS (SSL): `8443` (configurable via `WORDPRESS_SSL_PORT` in `.env`)
+- HTTP: `8000` (auto-redirects to HTTPS)
+
 ## Development Tools
 
 ### WP-CLI
@@ -223,7 +266,7 @@ docker-compose exec wordpress wp cache flush
 4. Add breakpoints in your plugin code
 5. Visit your site with `?XDEBUG_TRIGGER=1` in the URL
 
-Example: `http://wooco.localhost:8000/?XDEBUG_TRIGGER=1` (or your configured hostname)
+Example: `https://wooco.localhost:8443/?XDEBUG_TRIGGER=1` (or your configured hostname)
 
 #### PhpStorm
 
@@ -295,8 +338,8 @@ The environment includes these WooCommerce product types:
 - John Doe (john.doe@example.com / customer123)
 - Jane Smith (jane.smith@example.com / customer123)
 
-View products: http://wooco.localhost:8000/wp-admin/edit.php?post_type=product
-View customers: http://wooco.localhost:8000/wp-admin/admin.php?page=wc-admin&path=/customers
+View products: https://wooco.localhost:8443/wp-admin/edit.php?post_type=product
+View customers: https://wooco.localhost:8443/wp-admin/admin.php?page=wc-admin&path=/customers
 
 ### Adding More Sample Data
 

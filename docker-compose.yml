@@ -31,10 +31,14 @@ services:
         condition: service_healthy
     ports:
       - "${WORDPRESS_PORT:-8000}:80"
+      - "${WORDPRESS_SSL_PORT:-8443}:443"
     volumes:
       # Mount entire WordPress directory for local development
       - ./wordpress:/var/www/html
       - ./scripts:/var/www/scripts
+      # Mount SSL certificates
+      - ./ssl/cert.pem:/etc/ssl/certs/cert.pem:ro
+      - ./ssl/key.pem:/etc/ssl/private/key.pem:ro
     restart: unless-stopped
     environment:
       WORDPRESS_DB_HOST: db:3306

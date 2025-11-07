@@ -38,6 +38,15 @@ jobs:
 
           cat .env
 
+      - name: Generate SSL certificates
+        run: |
+          mkdir -p ssl
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout ssl/key.pem \
+            -out ssl/cert.pem \
+            -subj "/C=US/ST=State/L=City/O=Development/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
       - name: Build Docker images
         run: docker compose build
         timeout-minutes: 10
@@ -64,7 +73,7 @@ jobs:
         run: |
           # Check if WordPress responds
           response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000)
-          if [ "$response" -ne "200" ] && [ "$response" -ne "302" ]; then
+          if [ "$response" -ne "200" ] && [ "$response" -ne "301" ] && [ "$response" -ne "302" ]; then
             echo "WordPress is not responding correctly (HTTP $response)"
             exit 1
           fi
@@ -210,7 +219,7 @@ jobs:
       - name: Test WordPress site accessibility
         run: |
           response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000)
-          if [ "$response" -eq "200" ]; then
+          if [ "$response" -eq "200" ] || [ "$response" -eq "301" ] || [ "$response" -eq "302" ]; then
             echo "✓ WordPress site is accessible (HTTP $response)"
           else
             echo "✗ WordPress site returned HTTP $response"
