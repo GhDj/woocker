@@ -38,6 +38,15 @@ jobs:
 
           cat .env
 
+      - name: Generate SSL certificates
+        run: |
+          mkdir -p ssl
+          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout ssl/key.pem \
+            -out ssl/cert.pem \
+            -subj "/C=US/ST=State/L=City/O=Development/CN=localhost" \
+            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
+
       - name: Build Docker images
         run: docker compose build
         timeout-minutes: 10
