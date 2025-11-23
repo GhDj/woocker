@@ -339,9 +339,9 @@ cmd_remove() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --containers) remove_files=false ;;
-            --files) remove_containers=false ;;
-            --force|-y) force=true ;;
+            --containers) remove_files=false; shift ;;
+            --files) remove_containers=false; shift ;;
+            --force|-y) force=true; shift ;;
             *) print_error "Unknown option: $1"; exit 1 ;;
         esac
     done
