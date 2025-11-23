@@ -126,12 +126,21 @@ cmd_create() {
     # Get ports
     read -r port ssl_port pma_port <<< $(get_next_ports)
     
+    # Determine Docker Image Tag
+    local wp_image="wordpress:${wp_ver}-php${php_ver}-apache"
+    if [ "$php_ver" == "7.4" ]; then
+        # PHP 7.4 images don't have WP version pinning in recent tags, or use a specific one.
+        # Using the generic php7.4 tag which pulls the latest WP compatible with 7.4
+        wp_image="wordpress:php7.4-apache"
+    fi
+
     # Create .env
     cat > "${INSTANCES_DIR}/${name}/.env" <<EOF
 INSTANCE_NAME=${name}
 PHP_VERSION=${php_ver}
 WORDPRESS_VERSION=${wp_ver}
 WOOCOMMERCE_VERSION=${woo_ver}
+WORDPRESS_IMAGE=${wp_image}
 WORDPRESS_PORT=${port}
 WORDPRESS_SSL_PORT=${ssl_port}
 PMA_PORT=${pma_port}

@@ -13,7 +13,7 @@ services:
     networks:
       - default
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}" ]
       timeout: 20s
       retries: 10
 
@@ -24,6 +24,7 @@ services:
       args:
         WORDPRESS_VERSION: ${WORDPRESS_VERSION:-6.4}
         PHP_VERSION: ${PHP_VERSION:-8.1}
+        WORDPRESS_IMAGE: ${WORDPRESS_IMAGE}
     depends_on:
       db:
         condition: service_healthy
