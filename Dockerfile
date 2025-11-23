@@ -1,4 +1,4 @@
-ARG WORDPRESS_VERSION=6.4
+ARG WORDPRESS_VERSION=6
 ARG PHP_VERSION=8.1
 # For PHP 7.4, use wordpress:php7.4-apache (no version pinning)
 # For PHP 8.0+, use wordpress:6.4-php8.x-apache (version pinned)
@@ -35,11 +35,11 @@ RUN a2ensite default-ssl
 # PHP 8.3+: Xdebug 3.3.x
 RUN PHP_VERSION=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;") && \
     if [ "$PHP_VERSION" = "7.4" ]; then \
-        pecl install xdebug-3.1.6; \
+    pecl install xdebug-3.1.6; \
     elif [ "$PHP_VERSION" = "8.3" ]; then \
-        pecl install xdebug-3.3.2; \
+    pecl install xdebug-3.3.2; \
     else \
-        pecl install xdebug-3.2.2; \
+    pecl install xdebug-3.2.2; \
     fi && \
     docker-php-ext-enable xdebug
 
