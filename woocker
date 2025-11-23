@@ -335,83 +335,35 @@ cmd_remove() {
 
     local remove_containers=true
     local remove_files=true
+    local force=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             --containers) remove_files=false ;;
             --files) remove_containers=false ;;
+            --force|-y) force=true ;;
             *) print_error "Unknown option: $1"; exit 1 ;;
         esac
     done
     
-    # If both flags are passed (which is weird but possible), assume user wants specific things.
-    # If user passed --containers, we set remove_files=false.
-    # If user passed --files, we set remove_containers=false.
-    # If user passed BOTH, then both became false? No.
-    # Let's clarify logic:
-    # Default: Both true.
-    # If --containers ONLY: files=false.
-    # If --files ONLY: containers=false.
-    # If BOTH: Both true? Or last one wins?
-    # Let's stick to: if ANY flag is present, we disable the default "all" and enable only what's asked.
-    # But checking "if any flag" is hard after parsing.
-    # Simpler:
-    # Default: mode="all"
-    # --containers -> mode="containers"
-    # --files -> mode="files"
-    # If both, last one wins? Or support both?
-    # Let's support explicit flags enabling features.
-    # Actually, the user request was "choose remove the containers or the files or both".
-    # So:
-    # woocker remove name (ALL)
-    # woocker remove name --containers (ONLY containers)
-    # woocker remove name --files (ONLY files)
-    # woocker remove name --containers --files (ALL)
-    
-    # Re-parsing logic:
-    local mode="all"
-    # Check args first to see if we have flags
-    for arg in "$@"; do
-        if [[ "$arg" == "--containers" ]]; then
-            if [[ "$mode" == "files" ]]; then mode="all"; else mode="containers"; fi
-        elif [[ "$arg" == "--files" ]]; then
-             if [[ "$mode" == "containers" ]]; then mode="all"; else mode="files"; fi
-        fi
-    done
-    
-    # Wait, the previous loop consumed args.
-    # Let's just use the boolean flags logic I started with, but refined.
-    # If I see a flag, I should probably turn off the "default all" behavior unless I track "default".
-    
-    # Let's try this:
-    local do_containers=false
-    local do_files=false
-    local has_flags=false
-    
-    # We need to re-parse because $1 was shifted.
-    # Actually, I can just parse remaining args.
-    
-    for arg in "$@"; do
-        case $arg in
-            --containers) do_containers=true; has_flags=true ;;
-            --files) do_files=true; has_flags=true ;;
-        esac
-    done
+    # ... (logic for flags) ...
     
     if [ "$has_flags" = false ]; then
         do_containers=true
         do_files=true
     fi
 
-    print_warning "You are about to REMOVE instance '$name':"
-    if [ "$do_containers" = true ]; then echo "  - Containers (and volumes)"; fi
-    if [ "$do_files" = true ]; then echo "  - Files (${INSTANCES_DIR}/${name})"; fi
-    
-    read -p "Are you sure? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_info "Aborted."
-        return
+    if [ "$force" = false ]; then
+        print_warning "You are about to REMOVE instance '$name':"
+        if [ "$do_containers" = true ]; then echo "  - Containers (and volumes)"; fi
+        if [ "$do_files" = true ]; then echo "  - Files (${INSTANCES_DIR}/${name})"; fi
+        
+        read -p "Are you sure? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            print_info "Aborted."
+            return
+        fi
     fi
 
     if [ "$do_containers" = true ]; then

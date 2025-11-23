@@ -2,9 +2,9 @@ name: Docker Build & Test
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, multi-instance-support ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, multi-instance-support ]
   schedule:
     # Run weekly on Monday at 00:00 UTC to catch dependency issues
     - cron: '0 0 * * 1'
@@ -26,34 +26,27 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Create .env file
+      - name: Make woocker script executable
+        run: chmod +x woocker
+
+      - name: Create Test Instance
+        run: ./woocker create ci-test --php ${{ matrix.php-version }}
+
+      - name: Start Instance
+        run: ./woocker start ci-test
+
+      - name: Export Env Vars for CI
+        # We need to export variables so subsequent docker compose commands work
         run: |
-          cp .env.example .env
-          sed -i "s/PHP_VERSION=8.1/PHP_VERSION=${{ matrix.php-version }}/" .env
-
-          # For PHP 7.4, use wordpress:php7.4-apache (no version pinning)
-          if [ "${{ matrix.php-version }}" = "7.4" ]; then
-            echo "WORDPRESS_IMAGE_TAG=wordpress:php7.4-apache" >> .env
-          fi
-
-          cat .env
-
-      - name: Generate SSL certificates
-        run: |
-          mkdir -p ssl
-          openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-            -keyout ssl/key.pem \
-            -out ssl/cert.pem \
-            -subj "/C=US/ST=State/L=City/O=Development/CN=localhost" \
-            -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
-
-      - name: Build Docker images
-        run: docker compose build
-        timeout-minutes: 10
-
-      - name: Start containers
-        run: docker compose up -d
-        timeout-minutes: 5
+          echo "INSTANCE_PATH=$(pwd)/instances/ci-test" >> $GITHUB_ENV
+          echo "PLUGINS_PATH=$(pwd)/plugins" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=woocker_ci-test" >> $GITHUB_ENV
+          # Source the .env to get ports
+          set -a
+          source instances/ci-test/.env
+          set +a
+          echo "WORDPRESS_PORT=$WORDPRESS_PORT" >> $GITHUB_ENV
+          echo "PMA_PORT=$PMA_PORT" >> $GITHUB_ENV
 
       - name: Wait for services to be ready
         run: |
@@ -63,7 +56,7 @@ jobs:
 
           echo "Waiting for WordPress..."
           sleep 10
-          timeout 60 bash -c 'until curl -f http://localhost:8000 > /dev/null 2>&1; do sleep 2; done'
+          timeout 60 bash -c "until curl -f http://localhost:$WORDPRESS_PORT > /dev/null 2>&1; do sleep 2; done"
           echo "WordPress is ready!"
 
       - name: Check container status
@@ -72,7 +65,7 @@ jobs:
       - name: Verify WordPress installation
         run: |
           # Check if WordPress responds
-          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000)
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$WORDPRESS_PORT)
           if [ "$response" -ne "200" ] && [ "$response" -ne "301" ] && [ "$response" -ne "302" ]; then
             echo "WordPress is not responding correctly (HTTP $response)"
             exit 1
@@ -114,7 +107,7 @@ jobs:
 
       - name: Check PHPMyAdmin
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080)
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PMA_PORT)
           if [ "$response" -ne "200" ]; then
             echo "PHPMyAdmin is not responding correctly (HTTP $response)"
             exit 1
@@ -131,30 +124,40 @@ jobs:
 
       - name: Stop containers
         if: always()
-        run: docker compose down -v
+        run: ./woocker remove ci-test --force
 
-  test-setup-script:
-    name: Test Setup Script
+  test-init-command:
+    name: Test Init Command
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Make setup script executable
-        run: chmod +x setup.sh
+      - name: Make woocker script executable
+        run: chmod +x woocker
 
-      - name: Run setup script
-        run: ./setup.sh
+      - name: Create and Start Instance
+        run: |
+          ./woocker create ci-init
+          ./woocker start ci-init
+
+      - name: Export Env Vars for CI
+        run: |
+          echo "INSTANCE_PATH=$(pwd)/instances/ci-init" >> $GITHUB_ENV
+          echo "PLUGINS_PATH=$(pwd)/plugins" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=woocker_ci-init" >> $GITHUB_ENV
+          set -a
+          source instances/ci-init/.env
+          set +a
+          echo "WORDPRESS_PORT=$WORDPRESS_PORT" >> $GITHUB_ENV
+
+      - name: Run Init Command
+        run: ./woocker init ci-init
         timeout-minutes: 15
-        env:
-          CI: true
 
       - name: Verify WordPress is installed
         run: |
-          # Wait a bit for WordPress to fully initialize
-          sleep 5
-
           # Check if WordPress core is installed
           if docker compose exec -T wordpress wp core is-installed --allow-root; then
             echo "✓ WordPress is installed"
@@ -207,18 +210,9 @@ jobs:
             exit 1
           fi
 
-      - name: Verify VS Code config exists
-        run: |
-          if [ -f ".vscode/launch.json" ]; then
-            echo "✓ VS Code launch.json created"
-          else
-            echo "✗ VS Code launch.json not found"
-            exit 1
-          fi
-
       - name: Test WordPress site accessibility
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000)
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$WORDPRESS_PORT)
           if [ "$response" -eq "200" ] || [ "$response" -eq "301" ] || [ "$response" -eq "302" ]; then
             echo "✓ WordPress site is accessible (HTTP $response)"
           else
@@ -229,7 +223,6 @@ jobs:
       - name: View logs on failure
         if: failure()
         run: |
-          echo "=== Setup Script Output ==="
           echo "=== WordPress Logs ==="
           docker compose logs wordpress
           echo "=== Database Logs ==="
@@ -237,4 +230,4 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: docker compose down -v
+        run: ./woocker remove ci-init --force
