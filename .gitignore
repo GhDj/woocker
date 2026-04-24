@@ -25,12 +25,19 @@ tests-output/
 phpunit.xml.dist
 
 # WordPress - ignore everything except custom plugins
+# Old structure (deprecated but kept for history if needed)
 wordpress/
-!wordpress/wp-content/
-!wordpress/wp-content/plugins/
-wordpress/wp-content/plugins/*
-!wordpress/wp-content/plugins/.gitkeep
-# Add your custom plugins here with !wordpress/wp-content/plugins/your-plugin-name/
+
+# New Multi-Instance Structure
+instances/
+!instances/.gitkeep
+
+# Shared Plugins - Track these!
+plugins/
+!plugins/.gitkeep
+# Ignore everything inside plugins except specific ones if needed, 
+# but usually we want to track shared plugins.
+# If you want to ignore specific plugins, add them here.
 
 # Logs
 *.log
